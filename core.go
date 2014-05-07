@@ -167,7 +167,7 @@ func (t *tinkerforge) forwardCallback(packet Packet) {
 	for e := t.callback.Front(); e != nil; e = e.Next() {
 
 		val := e.Value.(regCallback)
-		if val.uid == packet.UID() && val.funcId == packet.FunctionID() {
+		if (val.uid == 0 || val.uid == packet.UID()) && val.funcId == packet.FunctionID() {
 			val.ch <- packet
 		}
 
@@ -216,5 +216,13 @@ func (t *tinkerforge) Request(packet Packet, resp chan Packet) {
 }
 
 func (t *tinkerforge) RegisterCallback(uid uint32, funcId uint8, ch chan Packet) {
+
+	t.register <- regCallback{uid, funcId, ch}
+
+}
+
+func (t *tinkerforge) UnregisterCallback(uid uint32, funcId uint8, ch chan Packet) {
+
+	t.unregister <- regCallback{uid, funcId, ch}
 
 }
