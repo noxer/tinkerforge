@@ -131,7 +131,7 @@ func New(host string) (*tinkerforge, error) {
 
 		// Read until the connection dies
 		for {
-			t.recv <- ReadPacket(t.conn)
+			t.recv <- readPacket(t.conn)
 		}
 	}()
 

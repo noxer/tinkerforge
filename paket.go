@@ -46,7 +46,7 @@ func NewPacket(uid uint32, funcId uint8, respExp bool, params ...interface{}) Pa
 
 }
 
-func ReadPacket(re io.Reader) Packet {
+func readPacket(re io.Reader) Packet {
 
 	header := struct {
 		Uid   uint32
