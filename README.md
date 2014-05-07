@@ -6,7 +6,7 @@ A go implementation of the tinkerforge protocol.
 Example
 -------
 
-´´´go
+```go
 package main
 
 import (
@@ -31,4 +31,4 @@ func main() {
 
     t.Close()
 }
-´´´
+```
