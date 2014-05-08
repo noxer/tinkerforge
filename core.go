@@ -4,18 +4,21 @@ import (
 	"bufio"
 	"container/list"
 	"net"
+	"time"
 )
 
 type tinkerforge struct {
 	conn       net.Conn
 	nextSeqNum chan byte
 
-	adhoc      map[adhocKey]chan Packet
-	callback   *list.List
-	send       chan sendReq
-	recv       chan Packet
-	register   chan regCallback
-	unregister chan regCallback
+	adhoc    map[adhocKey]adhocData
+	callback *list.List
+
+	send        chan sendReq
+	recv        chan Packet
+	register    chan regCallback
+	unregister  chan regCallback
+	removeAdhoc chan adhocKey
 
 	exit chan struct{}
 }
@@ -24,6 +27,20 @@ type adhocKey struct {
 	uid    uint32
 	funcId uint8
 	seqNum uint8
+}
+
+type adhocData struct {
+	ch     chan Packet
+	cancel chan struct{}
+}
+
+func newAdhocData(ch chan Packet) adhocData {
+
+	return adhocData{
+		ch:     ch,
+		cancel: make(chan struct{}),
+	}
+
 }
 
 type sendReq struct {
@@ -42,13 +59,14 @@ func New(host string) (*tinkerforge, error) {
 	// Variables
 	var err error
 	t := &tinkerforge{
-		adhoc:      make(map[adhocKey]chan Packet),
-		callback:   list.New(),
-		send:       make(chan sendReq),
-		recv:       make(chan Packet),
-		register:   make(chan regCallback),
-		unregister: make(chan regCallback),
-		exit:       make(chan struct{}),
+		adhoc:       make(map[adhocKey]adhocData),
+		callback:    list.New(),
+		send:        make(chan sendReq, 8),
+		recv:        make(chan Packet, 8),
+		register:    make(chan regCallback),
+		unregister:  make(chan regCallback),
+		removeAdhoc: make(chan adhocKey),
+		exit:        make(chan struct{}),
 	}
 
 	// Establish connection
@@ -118,6 +136,13 @@ func New(host string) (*tinkerforge, error) {
 
 				t.removeCallback(r)
 
+			case r, ok := <-t.removeAdhoc:
+				if !ok {
+					return
+				}
+
+				delete(t.adhoc, r)
+
 			case <-t.exit:
 				return
 
@@ -146,7 +171,22 @@ func New(host string) (*tinkerforge, error) {
 
 func (t *tinkerforge) addAdhoc(uid uint32, funcId uint8, seqNum uint8, ch chan Packet) {
 
-	t.adhoc[adhocKey{uid, funcId, seqNum}] = ch
+	key := adhocKey{uid, funcId, seqNum}
+	data := newAdhocData(ch)
+
+	t.adhoc[key] = data
+
+	go func() {
+
+		timer := time.NewTimer(2500 * time.Millisecond)
+
+		select {
+		case <-timer.C:
+			t.removeAdhoc <- key
+		case <-data.cancel:
+		}
+
+	}()
 
 }
 
@@ -185,8 +225,9 @@ func (t *tinkerforge) forwardAdhoc(packet Packet) {
 
 	key := adhocKey{packet.UID(), packet.FunctionID(), packet.SequenceNum()}
 
-	if ch, ok := t.adhoc[key]; ok {
-		ch <- packet
+	if da, ok := t.adhoc[key]; ok {
+		close(da.cancel)
+		da.ch <- packet
 		delete(t.adhoc, key)
 	}
 
