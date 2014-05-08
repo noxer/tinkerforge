@@ -46,7 +46,9 @@ func NewPacket(uid uint32, funcId uint8, respExp bool, params ...interface{}) Pa
 
 }
 
-func readPacket(re io.Reader) Packet {
+func readPacket(data []byte) Packet {
+
+	re := bytes.NewReader(data)
 
 	header := struct {
 		Uid   uint32
@@ -87,8 +89,16 @@ func (p Packet) ReadPayload(vars ...interface{}) {
 
 	re := bytes.NewBuffer(p.payload)
 
-	if err := binary.Read(re, binary.LittleEndian, vars); err != nil {
-		panic(err.Error())
+	for _, v := range vars {
+
+		if err := binary.Read(re, binary.LittleEndian, v); err != nil {
+			if err.Error() == "EOF" {
+				return
+			}
+
+			panic(err.Error())
+		}
+
 	}
 
 }
@@ -198,5 +208,33 @@ func (p Packet) writePayload(wr io.Writer) {
 	if err := binary.Write(wr, binary.LittleEndian, p.payload); err != nil {
 		panic(err.Error())
 	}
+
+}
+
+// Packet scanner
+
+// Scans a byte stream for packets and returns them as byte arrays
+func ScanPacket(data []byte, atEOF bool) (advance int, token []byte, err error) {
+
+	// We are unable to read the length of the packet.
+	if len(data) < 5 {
+		if atEOF {
+			return 0, nil, errors.New("EOF")
+		}
+
+		return 0, nil, nil
+	}
+
+	// Check the length of the data and the packet
+	if len(data) >= int(data[4]) {
+		return int(data[4]), data[:data[4]], nil
+	}
+
+	// The packet is incomplete but we are at EOF
+	if atEOF {
+		return 0, nil, errors.New("EOF")
+	}
+
+	return 0, nil, nil
 
 }

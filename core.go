@@ -1,6 +1,7 @@
 package tinkerforge
 
 import (
+	"bufio"
 	"container/list"
 	"net"
 )
@@ -127,11 +128,16 @@ func New(host string) (*tinkerforge, error) {
 
 	// Start the reveiver
 	go func() {
-		defer recover()
+		defer func() {
+			recover()
+		}()
+
+		s := bufio.NewScanner(t.conn)
+		s.Split(ScanPacket)
 
 		// Read until the connection dies
-		for {
-			t.recv <- readPacket(t.conn)
+		for s.Scan() {
+			t.recv <- readPacket(s.Bytes())
 		}
 	}()
 
