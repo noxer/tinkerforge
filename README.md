@@ -22,6 +22,7 @@ import (
 func main() {
     // Open a new connection to brickd (we ignore the error)
     t, _ := tinkerforge.New("localhost:4223")
+    defer t.Close()
 
     // Calls function 32 of bricklet 3631747890
     // no response expected
@@ -34,7 +35,5 @@ func main() {
     packet := <-resp
 
     // do something with the response packet
-
-    t.Close()
 }
 ```
