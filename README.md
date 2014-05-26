@@ -6,7 +6,7 @@ A go implementation of the tinkerforge protocol.
 Install
 -------
 ```
-go install github.com/Noxer/tinkerforge
+go get github.com/Noxer/tinkerforge
 ```
 
 Example
