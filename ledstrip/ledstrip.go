@@ -1,0 +1,318 @@
+// ledstrip.go
+// Control routines for LED strips
+// Author: Tim Scheuermann (https://github.com/noxer)
+//
+// License:
+// Copyright (c) 2014, Tim Scheuermann
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+// 1. Redistributions of source code must retain the above copyright notice,
+// this list of conditions and the following disclaimer.
+//
+// 2. Redistributions in binary form must reproduce the above copyright notice,
+// this list of conditions and the following disclaimer in the documentation
+// and/or other materials provided with the distribution.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+package ledstrip
+
+import (
+	"github.com/noxer/tinkerforge"
+	"github.com/noxer/tinkerforge/helpers"
+)
+
+// LedStrip is a control structure for LED strips
+type LedStrip struct {
+	t           tinkerforge.Tinkerforge
+	uid         uint32
+	colorMap    [3]int
+	revColorMap [3]int
+}
+
+// Color represents a three byte value (8 bit for red, green and blue respectively).
+type Color [3]byte
+
+var (
+	// The standard color mapping (R->R, G->G, B->B)
+	ColorMapRGB = [3]int{0, 1, 2}
+	// Color mapping needed when red and blue are flipped
+	ColorMapBGR = [3]int{2, 1, 0}
+)
+
+// ChipType represents different types of control chips.
+type ChipType uint16
+
+const (
+	WS2801 ChipType = 2801
+	WS2811          = 2811
+	WS2812          = 2812
+)
+
+// New creates a new LED strip control for the bricklet with 'uid'.
+func New(t tinkerforge.Tinkerforge, uid uint32) *LedStrip {
+	return &LedStrip{
+		t:           t,
+		uid:         uid,
+		colorMap:    [3]int{0, 1, 2},
+		revColorMap: [3]int{0, 1, 2},
+	}
+}
+
+// SetRGBValues sets up to 16 color values beginning from 'index' to the values in 'colors'.
+func (l *LedStrip) SetRGBValues(index uint16, colors []*Color) error {
+	// The rgb data
+	r, g, b := [16]byte{}, [16]byte{}, [16]byte{}
+
+	// Trim the slice if necessary
+	if len(colors) > 16 {
+		colors = colors[:16]
+	}
+
+	// Copy the colors into the arrays, apply color mapping
+	for i, c := range colors {
+		r[i] = c[l.colorMap[0]]
+		g[i] = c[l.colorMap[1]]
+		b[i] = c[l.colorMap[2]]
+	}
+
+	// Create packet
+	p, err := tinkerforge.NewPacket(l.uid, 1, false, index, uint8(len(colors)), r, g, b)
+	if err != nil {
+		return err
+	}
+
+	// Send packet
+	_, err = l.t.Send(p)
+	return err
+}
+
+// Get retrieves the currently set RGB values of the LED strip beginning from 'index' and up to 'length' values.
+func (l *LedStrip) GetRGBValues(index uint16, length uint8) ([]*Color, error) {
+	// Limit the length to 16 (maximum the protocol supports)
+	if length > 16 {
+		length = 16
+	}
+
+	// Create a new tinkerforge packet for function #2
+	p, err := tinkerforge.NewPacket(l.uid, 2, true, index, length)
+	if err != nil {
+		return nil, err
+	}
+
+	// Send the packet
+	res, err := l.t.Send(p)
+	if err != nil {
+		return nil, err
+	}
+
+	// Decode the values from the answer
+	r, g, b := [16]byte{}, [16]byte{}, [16]byte{}
+	if err = res.Decode(&r, &g, &b); err != nil {
+		return nil, err
+	}
+
+	// Transform the single color arrays into color values
+	result := make([]*Color, length)
+	for i := 0; i < int(length); i++ {
+		result[i] = &Color{}
+		result[i][l.revColorMap[0]] = r[i]
+		result[i][l.revColorMap[1]] = g[i]
+		result[i][l.revColorMap[2]] = b[i]
+	}
+
+	return result, nil
+}
+
+// SetFrameDuration sets the number of milliseconds between frames.
+func (l *LedStrip) SetFrameDuration(ms uint16) error {
+	// Create a new tinkerforge packet for function #3
+	p, err := tinkerforge.NewPacket(l.uid, 3, false, ms)
+	if err != nil {
+		return err
+	}
+
+	// Send the packet
+	_, err = l.t.Send(p)
+	return err
+
+}
+
+// GetFrameDuration returns the currently set number of milliseconds between frames.
+func (l *LedStrip) GetFrameDuration() (uint16, error) {
+	// Create a tinkerforge packet for function #4
+	p, err := tinkerforge.NewPacket(l.uid, 4, true)
+	if err != nil {
+		return 0, err
+	}
+
+	// Send the packet
+	res, err := l.t.Send(p)
+	if err != nil {
+		return 0, err
+	}
+
+	// Decode the duration
+	var duration uint16
+	if err = res.Decode(&duration); err != nil {
+		return 0, err
+	}
+
+	return duration, nil
+}
+
+// GetSupplyVoltage returns the current voltage the LED strip's LEDs consume in mV.
+func (l *LedStrip) GetSupplyVoltage() (uint16, error) {
+	// Create a new tinkerforge packet
+	p, err := tinkerforge.NewPacket(l.uid, 5, true)
+	if err != nil {
+		return 0, err
+	}
+
+	// Send the packet
+	res, err := l.t.Send(p)
+	if err != nil {
+		return 0, err
+	}
+
+	// Decode the voltage
+	var voltage uint16
+	if err = res.Decode(&voltage); err != nil {
+		return 0, err
+	}
+
+	return voltage, nil
+}
+
+// SetClockFrequency sets the frequency of the clock in hertz.
+// Allowed values range from 10000 (10kHz) to 2000000 (2MHz).
+// The bricklet chooses the next possible frequency automatically.
+func (l *LedStrip) SetClockFrequency(frequency uint32) error {
+	// Create a new tinkerforge packet
+	p, err := tinkerforge.NewPacket(l.uid, 7, false, frequency)
+	if err != nil {
+		return err
+	}
+
+	// Send the packet
+	_, err = l.t.Send(p)
+	return err
+
+}
+
+// GetClockFrequency returns the currently used clock frequency.
+func (l *LedStrip) GetClockFrequency() (uint32, error) {
+	// Create a new tinkerforge packet
+	p, err := tinkerforge.NewPacket(l.uid, 8, true)
+	if err != nil {
+		return 0, err
+	}
+
+	// Send the packet
+	res, err := l.t.Send(p)
+	if err != nil {
+		return 0, err
+	}
+
+	// Decode the frequency
+	var frequency uint32
+	if err = res.Decode(&frequency); err != nil {
+		return 0, err
+	}
+
+	return frequency, nil
+}
+
+// SetChipType sets the type of the LEDs control chip.
+func (l *LedStrip) SetChipType(chipType ChipType) error {
+	// Create a new tinkerforge packet
+	p, err := tinkerforge.NewPacket(l.uid, 9, false, chipType)
+	if err != nil {
+		return err
+	}
+
+	// Send the packet
+	_, err = l.t.Send(p)
+	return err
+
+}
+
+// GetChipType returns the currently set type of the LEDs control chip.
+func (l *LedStrip) GetChipType() (ChipType, error) {
+	// Create a new tinkerforge packet
+	p, err := tinkerforge.NewPacket(l.uid, 10, true)
+	if err != nil {
+		return 0, err
+	}
+
+	// Send the packet
+	res, err := l.t.Send(p)
+	if err != nil {
+		return 0, err
+	}
+
+	// Decode the chip type
+	var chipType ChipType
+	if err = res.Decode(&chipType); err != nil {
+		return 0, err
+	}
+
+	return chipType, nil
+}
+
+// GetIdentity returns the position information of the bricklet and its identifier.
+func (l *LedStrip) GetIdentity() (*helpers.BrickletIdentity, error) {
+	// Call the helper function for getting the identity
+	i, err := helpers.GetIdenitity(l.t, l.uid)
+	return i, err
+
+}
+
+type frameRenderedHandler func(uint16)
+
+func (f frameRenderedHandler) Handle(p *tinkerforge.Packet) {
+
+	var length uint16
+
+	if p.Decode(&length) != nil {
+		return
+	}
+	f(length)
+
+}
+
+// CallbackFrameRendered is a convenience function for registering
+// a handler to be called when a frame has been rendered.
+func (l *LedStrip) CallbackFrameRendered(handler func(uint16)) {
+
+	if handler == nil {
+		l.t.Handler(l.uid, 6, nil)
+	} else {
+		l.t.Handler(l.uid, 6, frameRenderedHandler(handler))
+	}
+
+}
+
+// SetColorMapping sets a color mapping to be applied when getting or setting RGB values.
+func (l *LedStrip) SetColorMapping(mapping [3]int) {
+	// Set the color map
+	l.colorMap = mapping
+
+	// Calculate the reverse map (for GetRGBValues)
+	for i, v := range mapping {
+		l.revColorMap[v] = i
+	}
+
+}
