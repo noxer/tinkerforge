@@ -33,7 +33,6 @@ import (
 	"bufio"
 	"crypto/hmac"
 	"crypto/sha1"
-	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -326,7 +325,7 @@ func (t *tinkerforge) authenticate() error {
 	}
 
 	// Decode the nonce
-	nonce := [4]byte{}
+	nonce := make([]byte, 0, 4)
 	if err = noncePacket.Decode(nonce); err != nil {
 		return err
 	}
@@ -335,7 +334,7 @@ func (t *tinkerforge) authenticate() error {
 	digest, clientNonce := hmacAuth(nonce, t.secret)
 
 	// Create the authentication packet
-	p, err := NewPacket(1, 2, false, clientNonce, digest)
+	p, err = NewPacket(1, 2, false, clientNonce, digest)
 	if err != nil {
 		return err
 	}
@@ -344,6 +343,9 @@ func (t *tinkerforge) authenticate() error {
 	if _, err = t.Send(p); err != nil {
 		return err
 	}
+
+	// No error
+	return nil
 }
 
 // handlerIdFromParam creates a new handler ID from the params
@@ -370,7 +372,7 @@ func hmacAuth(nonce []byte, secret string) ([]byte, []byte) {
 	nonce = append(nonce, randByte(), randByte(), randByte(), randByte())
 
 	// Calculate
-	h := hmac.New(sha1.New(), []byte(secret))
+	h := hmac.New(sha1.New, []byte(secret))
 	h.Write(nonce)
 
 	// Retrieve result
