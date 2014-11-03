@@ -31,8 +31,12 @@ package tinkerforge
 
 import (
 	"bufio"
+	"crypto/hmac"
+	"crypto/sha1"
+	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"sync"
 )
@@ -66,7 +70,9 @@ type tinkerforge struct {
 	handlers      map[handlerId]Handler
 	handlersMutex sync.RWMutex
 
-	sendQueue chan func()
+	sendQueue     chan func()
+	authenticated bool
+	secret        string
 
 	done chan struct{}
 	wait sync.WaitGroup
@@ -81,8 +87,13 @@ type handlerId struct {
 // New creates a new tinkerforge client
 func New(host string) (Tinkerforge, error) {
 
-	fmt.Println("New.")
+	tf, err := NewSecret(host, "")
+	return tf, err
 
+}
+
+// NewSecret creates a new tinkerforge client with an authentication secret
+func NewSecret(host, secret string) (Tinkerforge, error) {
 	// Set standard host
 	if host == "" {
 		host = "localhost:4223"
@@ -107,12 +118,18 @@ func New(host string) (Tinkerforge, error) {
 		handlers:  make(map[handlerId]Handler),
 		sendQueue: make(chan func(), 8),
 		done:      make(chan struct{}),
+		secret:    secret,
 	}
 
 	// Start the go routines
 	go tf.seqNumGenerator() // Sequence number generator
 	go tf.sender()          // Sender (queue for functions to send packets)
 	go tf.receiver()        // Receiver
+
+	// Authenticate if necessary
+	if tf.secret != "" {
+		tf.authenticate()
+	}
 
 	// Okay
 	return tf, nil
@@ -294,6 +311,41 @@ func (t *tinkerforge) handle(p *Packet) {
 	}
 }
 
+// authenticates the client
+func (t *tinkerforge) authenticate() error {
+	// Create nonce request packet
+	p, err := NewPacket(1, 1, true)
+	if err != nil {
+		return err
+	}
+
+	// Send the packet
+	noncePacket, err := t.Send(p)
+	if err != nil {
+		return err
+	}
+
+	// Decode the nonce
+	nonce := [4]byte{}
+	if err = noncePacket.Decode(nonce); err != nil {
+		return err
+	}
+
+	// Calculate the digest
+	digest, clientNonce := hmacAuth(nonce, t.secret)
+
+	// Create the authentication packet
+	p, err := NewPacket(1, 2, false, clientNonce, digest)
+	if err != nil {
+		return err
+	}
+
+	// Send auth packet
+	if _, err = t.Send(p); err != nil {
+		return err
+	}
+}
+
 // handlerIdFromParam creates a new handler ID from the params
 func handlerIdFromParam(uid uint32, funcId, seqNum uint8) handlerId {
 	return handlerId{
@@ -310,4 +362,25 @@ func handlerIdFromPacket(p *Packet) handlerId {
 		funcId: p.FunctionId(),
 		seqNum: p.SequenceNum(),
 	}
+}
+
+// hmacAuth returns the auth digest and client nonce
+func hmacAuth(nonce []byte, secret string) ([]byte, []byte) {
+	// Append our client nonce to the server nonce
+	nonce = append(nonce, randByte(), randByte(), randByte(), randByte())
+
+	// Calculate
+	h := hmac.New(sha1.New(), []byte(secret))
+	h.Write(nonce)
+
+	// Retrieve result
+	digest := h.Sum(make([]byte, 0, 20))
+
+	// Return the result
+	return digest, nonce[4:]
+}
+
+// randByte generates a random byte
+func randByte() byte {
+	return byte(rand.Uint32() % 256)
 }
