@@ -31,10 +31,12 @@ package tinkerforge
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"sync"
+	"time"
 )
 
 // Handler to get callbacks
@@ -43,13 +45,29 @@ type Handler interface {
 }
 
 // respHandler for getting responses back
-type respHandler chan *Packet
+type respHandler struct {
+	c chan *Packet
+	t time.Duration
+}
 
 // Handles responses
 func (r respHandler) Handle(p *Packet) {
 	fmt.Println("Handle respHandler")
 
-	r <- p
+	// No timeout provided (don't!)
+	if r.t == 0 {
+		r.c <- p
+		return
+	}
+
+	timer := time.NewTimer(r.t)
+
+	select {
+	case r.c <- p:
+		timer.Stop()
+	case <-timer.C:
+		close(r.c)
+	}
 }
 
 // Tinkerforge interface
@@ -70,6 +88,8 @@ type tinkerforge struct {
 
 	done chan struct{}
 	wait sync.WaitGroup
+
+	Timeout time.Duration
 }
 
 type handlerId struct {
@@ -77,6 +97,10 @@ type handlerId struct {
 	funcId uint8
 	seqNum uint8
 }
+
+var (
+	ErrTimeout = errors.New("Timeout while waiting for callback")
+)
 
 // New creates a new tinkerforge client
 func New(host string) (Tinkerforge, error) {
@@ -107,6 +131,7 @@ func New(host string) (Tinkerforge, error) {
 		handlers:  make(map[handlerId]Handler),
 		sendQueue: make(chan func(), 8),
 		done:      make(chan struct{}),
+		Timeout:   10 * time.Second,
 	}
 
 	// Start the go routines
@@ -160,7 +185,7 @@ func (t *tinkerforge) Send(p *Packet) (*Packet, error) {
 
 		// Register callback for expected response (if any)
 		if p.ResponseExpected() {
-			t.handler(p.UID(), p.FunctionId(), seqNum, respHandler(packets))
+			t.handler(p.UID(), p.FunctionId(), seqNum, respHandler{c: packets, t: t.Timeout})
 		}
 
 		// Send packet
@@ -183,7 +208,14 @@ func (t *tinkerforge) Send(p *Packet) (*Packet, error) {
 
 	// Return depeneding of the expected response
 	if p.ResponseExpected() {
-		return <-packets, nil
+		result, ok := <-packets
+		if ok {
+			return result, nil
+		} else {
+			// Timeout
+			return nil, ErrTimeout
+		}
+
 	} else {
 		return nil, nil
 	}
