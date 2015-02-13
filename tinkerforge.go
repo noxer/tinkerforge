@@ -25,8 +25,6 @@ type respHandler struct {
 
 // Handles responses
 func (r respHandler) Handle(p *Packet) {
-	fmt.Println("Handle respHandler")
-
 	// No timeout provided (don't!)
 	if r.t == 0 {
 		r.c <- p
@@ -54,7 +52,7 @@ type Tinkerforge interface {
 type tinkerforge struct {
 	conn          io.ReadWriteCloser
 	seqNum        chan byte
-	handlers      map[handlerId]Handler
+	handlers      map[handlerID]Handler
 	handlersMutex sync.RWMutex
 
 	sendQueue chan func()
@@ -65,9 +63,9 @@ type tinkerforge struct {
 	Timeout time.Duration
 }
 
-type handlerId struct {
+type handlerID struct {
 	uid    uint32
-	funcId uint8
+	funcID uint8
 	seqNum uint8
 }
 
@@ -101,7 +99,7 @@ func New(host string) (Tinkerforge, error) {
 	tf := &tinkerforge{
 		conn:      conn,
 		seqNum:    make(chan byte, 8),
-		handlers:  make(map[handlerId]Handler),
+		handlers:  make(map[handlerID]Handler),
 		sendQueue: make(chan func(), 8),
 		done:      make(chan struct{}),
 		Timeout:   10 * time.Second,
@@ -158,7 +156,7 @@ func (t *tinkerforge) Send(p *Packet) (*Packet, error) {
 
 		// Register callback for expected response (if any)
 		if p.ResponseExpected() {
-			t.handler(p.UID(), p.FunctionId(), seqNum, respHandler{c: packets, t: t.Timeout})
+			t.handler(p.UID(), p.FunctionID(), seqNum, respHandler{c: packets, t: t.Timeout})
 		}
 
 		// Send packet
@@ -271,7 +269,7 @@ func (t *tinkerforge) receiver() {
 
 		// Remove handler if it was not a callback
 		if !p.Callback() {
-			t.handler(p.UID(), p.FunctionId(), p.SequenceNum(), nil)
+			t.handler(p.UID(), p.FunctionID(), p.SequenceNum(), nil)
 		}
 	}
 }
@@ -290,7 +288,7 @@ func (t *tinkerforge) handle(p *Packet) {
 		handler.Handle(p)
 	} else {
 		// Maybe a wildcard?
-		if handler, ok = t.handlers[handlerIdFromParam(0, p.FunctionId(), p.SequenceNum())]; ok {
+		if handler, ok = t.handlers[handlerIdFromParam(0, p.FunctionID(), p.SequenceNum())]; ok {
 			fmt.Println("Found handler wildcard")
 
 			t.handlersMutex.RUnlock()
@@ -300,19 +298,19 @@ func (t *tinkerforge) handle(p *Packet) {
 }
 
 // handlerIdFromParam creates a new handler ID from the params
-func handlerIdFromParam(uid uint32, funcId, seqNum uint8) handlerId {
-	return handlerId{
+func handlerIdFromParam(uid uint32, funcID, seqNum uint8) handlerID {
+	return handlerID{
 		uid:    uid,
-		funcId: funcId,
+		funcID: funcID,
 		seqNum: seqNum,
 	}
 }
 
 // handlerIdFromPacket creates a new handler ID from packet p
-func handlerIdFromPacket(p *Packet) handlerId {
-	return handlerId{
+func handlerIdFromPacket(p *Packet) handlerID {
+	return handlerID{
 		uid:    p.UID(),
-		funcId: p.FunctionId(),
+		funcID: p.FunctionID(),
 		seqNum: p.SequenceNum(),
 	}
 }

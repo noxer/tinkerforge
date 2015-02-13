@@ -23,7 +23,7 @@ var (
 
 type Packet struct {
 	uid       uint32
-	funcId    uint8
+	funcID    uint8
 	seqNum    uint8
 	respExp   bool
 	errorCode ErrorCode
@@ -33,7 +33,7 @@ type Packet struct {
 }
 
 // NewPacket creates a new packet to be sent to the TinkerForge daemon
-func NewPacket(uid uint32, funcId uint8, respExp bool, params ...interface{}) (*Packet, error) {
+func NewPacket(uid uint32, funcID uint8, respExp bool, params ...interface{}) (*Packet, error) {
 
 	payload, err := parseParams(params)
 	if err != nil {
@@ -42,7 +42,7 @@ func NewPacket(uid uint32, funcId uint8, respExp bool, params ...interface{}) (*
 
 	return &Packet{
 		uid:       uid,
-		funcId:    funcId,
+		funcID:    funcID,
 		seqNum:    0,
 		respExp:   respExp,
 		errorCode: 0,
@@ -57,7 +57,7 @@ func readPacket(data []byte) (*Packet, error) {
 	re := bytes.NewReader(data)
 
 	header := struct {
-		Uid   uint32
+		UID   uint32
 		Len   uint8
 		Func  uint8
 		Seq   uint8
@@ -80,8 +80,8 @@ func readPacket(data []byte) (*Packet, error) {
 	}
 
 	p := &Packet{
-		uid:       header.Uid,
-		funcId:    header.Func,
+		uid:       header.UID,
+		funcID:    header.Func,
 		seqNum:    seqNum,
 		respExp:   respExp,
 		errorCode: ErrorCode(errCode),
@@ -128,8 +128,8 @@ func (p *Packet) Length() uint8 {
 }
 
 // FunctionID returns the function ID of the packet
-func (p *Packet) FunctionId() uint8 {
-	return p.funcId
+func (p *Packet) FunctionID() uint8 {
+	return p.funcID
 }
 
 func (p *Packet) SequenceNum() uint8 {
@@ -199,17 +199,17 @@ func (p *Packet) writeHeader(wr io.Writer, seqNum byte) error {
 
 	// Header structure
 	header := &struct {
-		Uid   uint32
-		Len   uint8
-		Func  uint8
-		Seq   uint8
-		Flags uint8
+		UID    uint32
+		Len    uint8
+		FuncID uint8
+		Seq    uint8
+		Flags  uint8
 	}{}
 
 	// Fill header
-	header.Uid = p.uid
+	header.UID = p.uid
 	header.Len = p.Length()
-	header.Func = p.funcId
+	header.FuncID = p.funcID
 	seqNum = seqNum << 4
 	if p.respExp {
 		seqNum |= 0x08
