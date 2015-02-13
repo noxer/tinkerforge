@@ -1,32 +1,3 @@
-// packet.go
-// Packet format implementation of the tinkerforge protocol
-// Author: Tim Scheuermann (https://github.com/noxer)
-//
-// License:
-// Copyright (c) 2014, Tim Scheuermann
-// All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice,
-// this list of conditions and the following disclaimer.
-//
-// 2. Redistributions in binary form must reproduce the above copyright notice,
-// this list of conditions and the following disclaimer in the documentation
-// and/or other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
-// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-// POSSIBILITY OF SUCH DAMAGE.
 package tinkerforge
 
 import (
@@ -64,8 +35,6 @@ type Packet struct {
 // NewPacket creates a new packet to be sent to the TinkerForge daemon
 func NewPacket(uid uint32, funcId uint8, respExp bool, params ...interface{}) (*Packet, error) {
 
-	fmt.Println("Creating packet.")
-
 	payload, err := parseParams(params)
 	if err != nil {
 		return nil, err
@@ -84,8 +53,6 @@ func NewPacket(uid uint32, funcId uint8, respExp bool, params ...interface{}) (*
 }
 
 func readPacket(data []byte) (*Packet, error) {
-
-	fmt.Println("Reading packet.")
 
 	re := bytes.NewReader(data)
 
@@ -128,8 +95,6 @@ func readPacket(data []byte) (*Packet, error) {
 
 // Decodes the payload of a packet into a number of variables
 func (p *Packet) Decode(vars ...interface{}) error {
-
-	fmt.Println("Decoding packet.")
 
 	re := bytes.NewReader(p.payload)
 
@@ -199,6 +164,7 @@ func (p *Packet) Callback() bool {
 	return p.callback
 }
 
+// Payload returns the payload of the packet
 func (p *Packet) Payload() []byte {
 	return p.payload
 }
@@ -215,8 +181,6 @@ func (p *Packet) Serialize(wr io.Writer, seqNum byte) error {
 
 func parseParams(params []interface{}) ([]byte, error) {
 
-	fmt.Println("Parse params.")
-
 	wr := bytes.NewBuffer(make([]byte, 0))
 
 	for _, p := range params {
@@ -232,8 +196,6 @@ func parseParams(params []interface{}) ([]byte, error) {
 }
 
 func (p *Packet) writeHeader(wr io.Writer, seqNum byte) error {
-
-	fmt.Println("Write header.")
 
 	// Header structure
 	header := &struct {
@@ -260,16 +222,12 @@ func (p *Packet) writeHeader(wr io.Writer, seqNum byte) error {
 }
 
 func (p *Packet) writePayload(wr io.Writer) error {
-
-	fmt.Println("Write payload.")
-
 	_, err := wr.Write(p.payload)
 	return err
 }
 
 // Scans a byte stream for packets and returns them as byte arrays
 func scanPacket(data []byte, atEOF bool) (advance int, token []byte, err error) {
-
 	// We are unable to read the length of the packet.
 	if len(data) < 5 {
 		if atEOF {
@@ -291,5 +249,4 @@ func scanPacket(data []byte, atEOF bool) (advance int, token []byte, err error) 
 	}
 
 	return 0, nil, nil
-
 }
