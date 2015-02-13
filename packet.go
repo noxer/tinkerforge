@@ -142,7 +142,7 @@ func (p *Packet) ResponseExpected() bool {
 }
 
 // ErrorID returns the ID of the error (or ECOkay)
-func (p *Packet) ErrorId() ErrorCode {
+func (p *Packet) ErrorID() ErrorCode {
 	return p.errorCode
 }
 
