@@ -106,6 +106,7 @@ func New(host string) (Tinkerforge, error) {
 	}
 
 	// Start the go routines
+	tf.wait.Add(3)
 	go tf.seqNumGenerator() // Sequence number generator
 	go tf.sender()          // Sender (queue for functions to send packets)
 	go tf.receiver()        // Receiver
@@ -218,7 +219,6 @@ func (t *tinkerforge) handler(uid uint32, funcId, seqNum uint8, h Handler) {
 
 // Sequence number generator
 func (t *tinkerforge) seqNumGenerator() {
-	t.wait.Add(1)
 	defer t.wait.Done()
 
 	num := byte(1)
@@ -237,7 +237,6 @@ func (t *tinkerforge) seqNumGenerator() {
 
 // Sender executes the funktions in sendQueue
 func (t *tinkerforge) sender() {
-	t.wait.Add(1)
 	defer t.wait.Done()
 
 	// Execute all functions
@@ -248,7 +247,6 @@ func (t *tinkerforge) sender() {
 
 // Receiver listens on the TCP connection and exeecutes the handlers accordingly
 func (t *tinkerforge) receiver() {
-	t.wait.Add(1)
 	defer t.wait.Done()
 
 	// Set up scanner
