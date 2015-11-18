@@ -102,7 +102,7 @@ var (
 	}
 )
 
-// Provides identity inforation for a bricklet
+// Provides identity information for a bricklet
 type BrickletIdentity struct {
 	UID              string
 	ConnectedUID     string
