@@ -112,7 +112,7 @@ type BrickletIdentity struct {
 	DeviceIdentifier uint16
 }
 
-func GetIdenitity(t tinkerforge.Tinkerforge, uid uint32) (*BrickletIdentity, error) {
+func GetIdentity(t tinkerforge.Tinkerforge, uid uint32) (*BrickletIdentity, error) {
 
 	p, err := tinkerforge.NewPacket(uid, 255, true)
 	if err != nil {
