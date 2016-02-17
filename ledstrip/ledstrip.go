@@ -1,32 +1,5 @@
-// ledstrip.go
-// Control routines for LED strips
+// Package ledstrip has control routines for LED strips
 // Author: Tim Scheuermann (https://github.com/noxer)
-//
-// License:
-// Copyright (c) 2014, Tim Scheuermann
-// All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice,
-// this list of conditions and the following disclaimer.
-//
-// 2. Redistributions in binary form must reproduce the above copyright notice,
-// this list of conditions and the following disclaimer in the documentation
-// and/or other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
-// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-// POSSIBILITY OF SUCH DAMAGE.
 package ledstrip
 
 import (
@@ -46,9 +19,9 @@ type LedStrip struct {
 type Color [3]byte
 
 var (
-	// The standard color mapping (R->R, G->G, B->B)
+	// ColorMapRGB represents the standard color mapping (R->R, G->G, B->B)
 	ColorMapRGB = [3]int{0, 1, 2}
-	// Color mapping needed when red and blue are flipped
+	// ColorMapBGR represents the color mapping needed when red and blue are flipped
 	ColorMapBGR = [3]int{2, 1, 0}
 )
 
@@ -56,9 +29,12 @@ var (
 type ChipType uint16
 
 const (
+	// WS2801 chip type ID
 	WS2801 ChipType = 2801
-	WS2811          = 2811
-	WS2812          = 2812
+	// WS2811 chip type ID
+	WS2811 = 2811
+	// WS2812 chip type ID
+	WS2812 = 2812
 )
 
 // New creates a new LED strip control for the bricklet with 'uid'.
@@ -99,7 +75,7 @@ func (l *LedStrip) SetRGBValues(index uint16, colors []*Color) error {
 	return err
 }
 
-// Get retrieves the currently set RGB values of the LED strip beginning from 'index' and up to 'length' values.
+// GetRGBValues retrieves the currently set RGB values of the LED strip beginning from 'index' and up to 'length' values.
 func (l *LedStrip) GetRGBValues(index uint16, length uint8) ([]*Color, error) {
 	// Limit the length to 16 (maximum the protocol supports)
 	if length > 16 {

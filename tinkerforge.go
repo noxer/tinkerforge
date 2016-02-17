@@ -1,4 +1,4 @@
-// Implementation of the tinkerforge protocol
+// Package tinkerforge implements the tinkerforge protocol
 // Author: Tim Scheuermann (https://github.com/noxer)
 package tinkerforge
 
@@ -44,7 +44,7 @@ func (r respHandler) Handle(p *Packet) {
 // Tinkerforge interface
 type Tinkerforge interface {
 	io.Closer
-	Handler(uid uint32, funcId uint8, handler Handler)
+	Handler(uid uint32, funcID uint8, handler Handler)
 	Send(packet *Packet) (*Packet, error)
 }
 
@@ -70,6 +70,7 @@ type handlerID struct {
 }
 
 var (
+	// ErrTimeout represents a timeout while waiting for a callback
 	ErrTimeout = errors.New("Timeout while waiting for callback")
 )
 
@@ -183,24 +184,21 @@ func (t *tinkerforge) Send(p *Packet) (*Packet, error) {
 		result, ok := <-packets
 		if ok {
 			return result, nil
-		} else {
-			// Timeout
-			return nil, ErrTimeout
 		}
-
-	} else {
-		return nil, nil
+		// Timeout
+		return nil, ErrTimeout
 	}
 
+	return nil, nil
 }
 
 // Handler registers a new handler for a packet
-func (t *tinkerforge) Handler(uid uint32, funcId uint8, h Handler) {
-	t.handler(uid, funcId, 0, h)
+func (t *tinkerforge) Handler(uid uint32, funcID uint8, h Handler) {
+	t.handler(uid, funcID, 0, h)
 }
 
 // handler registers any handler (internal)
-func (t *tinkerforge) handler(uid uint32, funcId, seqNum uint8, h Handler) {
+func (t *tinkerforge) handler(uid uint32, funcID, seqNum uint8, h Handler) {
 
 	fmt.Println("handler.")
 
@@ -209,12 +207,12 @@ func (t *tinkerforge) handler(uid uint32, funcId, seqNum uint8, h Handler) {
 
 	// Make the handler removable
 	if h == nil {
-		delete(t.handlers, handlerIdFromParam(uid, funcId, seqNum))
+		delete(t.handlers, handlerIDFromParam(uid, funcID, seqNum))
 		return
 	}
 
 	// Add handler
-	t.handlers[handlerIdFromParam(uid, funcId, seqNum)] = h
+	t.handlers[handlerIDFromParam(uid, funcID, seqNum)] = h
 }
 
 // Sequence number generator
@@ -279,14 +277,14 @@ func (t *tinkerforge) handle(p *Packet) {
 	fmt.Println(handlerIdFromPacket(p))
 	fmt.Println(t.handlers)
 
-	if handler, ok := t.handlers[handlerIdFromPacket(p)]; ok {
+	if handler, ok := t.handlers[handlerIDFromPacket(p)]; ok {
 		fmt.Println("Found handler exact")
 
 		t.handlersMutex.RUnlock()
 		handler.Handle(p)
 	} else {
 		// Maybe a wildcard?
-		if handler, ok = t.handlers[handlerIdFromParam(0, p.FunctionID(), p.SequenceNum())]; ok {
+		if handler, ok = t.handlers[handlerIDFromParam(0, p.FunctionID(), p.SequenceNum())]; ok {
 			fmt.Println("Found handler wildcard")
 
 			t.handlersMutex.RUnlock()
@@ -296,7 +294,7 @@ func (t *tinkerforge) handle(p *Packet) {
 }
 
 // handlerIdFromParam creates a new handler ID from the params
-func handlerIdFromParam(uid uint32, funcID, seqNum uint8) handlerID {
+func handlerIDFromParam(uid uint32, funcID, seqNum uint8) handlerID {
 	return handlerID{
 		uid:    uid,
 		funcID: funcID,
@@ -305,7 +303,7 @@ func handlerIdFromParam(uid uint32, funcID, seqNum uint8) handlerID {
 }
 
 // handlerIdFromPacket creates a new handler ID from packet p
-func handlerIdFromPacket(p *Packet) handlerID {
+func handlerIDFromPacket(p *Packet) handlerID {
 	return handlerID{
 		uid:    p.UID(),
 		funcID: p.FunctionID(),

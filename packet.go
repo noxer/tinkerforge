@@ -8,19 +8,26 @@ import (
 	"io"
 )
 
+// ErrorCode represents the error value returned by the brick(let)s
 type ErrorCode uint8
 
 const (
-	ECOkay             ErrorCode = 0
-	ECInvalidParam               = 1
-	ECFuncNotSupported           = 2
+	// ECOkay says no errors occured
+	ECOkay ErrorCode = 0
+	// ECInvalidParam says you sent an invalid parameter in the packet
+	ECInvalidParam = 1
+	// ECFuncNotSupported says the function number you sent is not available
+	ECFuncNotSupported = 2
 )
 
 var (
-	ErrInvalidParam     = errors.New("Invalid Parameter")
+	// ErrInvalidParam represents ECInvalidParam in Go
+	ErrInvalidParam = errors.New("Invalid Parameter")
+	// ErrFuncNotSupported represents ECFuncNotSupported in Go
 	ErrFuncNotSupported = errors.New("Function is not supported")
 )
 
+// Packet holds all information about a sent or received packet
 type Packet struct {
 	uid       uint32
 	funcID    uint8
@@ -93,7 +100,7 @@ func readPacket(data []byte) (*Packet, error) {
 	return p, nil
 }
 
-// Decodes the payload of a packet into a number of variables
+// Decode decodes the payload of a packet into a number of variables
 func (p *Packet) Decode(vars ...interface{}) error {
 
 	re := bytes.NewReader(p.payload)
@@ -132,6 +139,7 @@ func (p *Packet) FunctionID() uint8 {
 	return p.funcID
 }
 
+// SequenceNum returns the 4-bit sequence number of the packet.
 func (p *Packet) SequenceNum() uint8 {
 	return p.seqNum
 }
