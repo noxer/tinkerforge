@@ -12,7 +12,7 @@ import (
 type ErrorCode uint8
 
 const (
-	// ECOkay says no errors occured
+	// ECOkay says no errors occurred
 	ECOkay ErrorCode = 0
 	// ECInvalidParam says you sent an invalid parameter in the packet
 	ECInvalidParam = 1
