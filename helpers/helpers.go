@@ -9,17 +9,21 @@ import (
 	"github.com/noxer/tinkerforge"
 )
 
+// Version represents a bricklet version number
 type Version [3]byte
 
+// NewVersion creates a new Version array
 func NewVersion(main, sub, patch byte) Version {
 	return Version{main, sub, patch}
 }
 
+// String prints a version array
 func (v Version) String() string {
 	return fmt.Sprintf("%d.%d.%d", v[0], v[1], v[2])
 }
 
 var (
+	// DeviceIdentifiers is a map from the device ID to the name of the bricklet
 	DeviceIdentifiers = map[uint16]string{
 		11:  "Brick DC",
 		13:  "Brick Master",
