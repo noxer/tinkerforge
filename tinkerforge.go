@@ -274,7 +274,7 @@ func (t *tinkerforge) receiver() {
 func (t *tinkerforge) handle(p *Packet) {
 	t.handlersMutex.RLock()
 
-	fmt.Println(handlerIdFromPacket(p))
+	fmt.Println(handlerIDFromPacket(p))
 	fmt.Println(t.handlers)
 
 	if handler, ok := t.handlers[handlerIDFromPacket(p)]; ok {
