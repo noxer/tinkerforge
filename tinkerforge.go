@@ -259,15 +259,16 @@ func (t *tinkerforge) receiver() {
 func (t *tinkerforge) handle(p *Packet) {
 	t.handlersMutex.RLock()
 
-	if handler, ok := t.handlers[handlerIDFromPacket(p)]; ok {
-		t.handlersMutex.RUnlock()
-		handler.Handle(p)
-	} else {
+	var handler Handler
+	handler, ok := t.handlers[handlerIDFromPacket(p)]
+	if !ok {
 		// Maybe a wildcard?
-		if handler, ok = t.handlers[handlerIDFromParam(0, p.FunctionID(), p.SequenceNum())]; ok {
-			t.handlersMutex.RUnlock()
-			handler.Handle(p)
-		}
+		handler = t.handlers[handlerIDFromParam(0, p.FunctionID(), p.SequenceNum())]
+	}
+
+	t.handlersMutex.RUnlock()
+	if handler != nil {
+		handler.Handle(p)
 	}
 }
 
