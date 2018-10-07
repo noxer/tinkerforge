@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 )
 
@@ -247,7 +246,6 @@ func scanPacket(data []byte, atEOF bool) (advance int, token []byte, err error) 
 
 	// Check the length of the data and the packet
 	if len(data) >= int(data[4]) {
-		fmt.Println(data[:data[4]])
 		return int(data[4]), data[:data[4]], nil
 	}
 

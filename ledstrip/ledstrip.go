@@ -251,9 +251,8 @@ func (l *LedStrip) GetChipType() (ChipType, error) {
 // GetIdentity returns the position information of the bricklet and its identifier.
 func (l *LedStrip) GetIdentity() (*helpers.BrickletIdentity, error) {
 	// Call the helper function for getting the identity
-	i, err := helpers.GetIdenitity(l.t, l.uid)
+	i, err := helpers.GetIdentity(l.t, l.uid)
 	return i, err
-
 }
 
 type frameRenderedHandler func(uint16)

@@ -76,9 +76,6 @@ var (
 
 // New creates a new tinkerforge client
 func New(host string) (Tinkerforge, error) {
-
-	fmt.Println("New.")
-
 	// Set standard host
 	if host == "" {
 		host = "localhost:4223"
@@ -118,9 +115,6 @@ func New(host string) (Tinkerforge, error) {
 
 // Close closes the connection to the tinkerforge service
 func (t *tinkerforge) Close() error {
-
-	fmt.Println("Close.")
-
 	// Close the channels
 	close(t.done)
 	close(t.sendQueue)
@@ -137,9 +131,6 @@ func (t *tinkerforge) Close() error {
 
 // Send sends a new packet to the service and returns the answer (if an answer is expected)
 func (t *tinkerforge) Send(p *Packet) (*Packet, error) {
-
-	fmt.Println("Send.")
-
 	var packets chan *Packet
 
 	errors := make(chan error, 1)
@@ -150,9 +141,6 @@ func (t *tinkerforge) Send(p *Packet) (*Packet, error) {
 	}
 
 	f := func() {
-
-		fmt.Println("Send f.")
-
 		// Generate sequence number
 		seqNum := <-t.seqNum
 
@@ -199,9 +187,6 @@ func (t *tinkerforge) Handler(uid uint32, funcID uint8, h Handler) {
 
 // handler registers any handler (internal)
 func (t *tinkerforge) handler(uid uint32, funcID, seqNum uint8, h Handler) {
-
-	fmt.Println("handler.")
-
 	t.handlersMutex.Lock()
 	defer t.handlersMutex.Unlock()
 
@@ -256,7 +241,7 @@ func (t *tinkerforge) receiver() {
 		// Parse the packet
 		p, err := readPacket(scanner.Bytes())
 		if err != nil {
-			fmt.Println(err.Error())
+			fmt.Println(err)
 			continue
 		}
 
@@ -274,22 +259,16 @@ func (t *tinkerforge) receiver() {
 func (t *tinkerforge) handle(p *Packet) {
 	t.handlersMutex.RLock()
 
-	fmt.Println(handlerIDFromPacket(p))
-	fmt.Println(t.handlers)
-
-	if handler, ok := t.handlers[handlerIDFromPacket(p)]; ok {
-		fmt.Println("Found handler exact")
-
-		t.handlersMutex.RUnlock()
-		handler.Handle(p)
-	} else {
+	var handler Handler
+	handler, ok := t.handlers[handlerIDFromPacket(p)]
+	if !ok {
 		// Maybe a wildcard?
-		if handler, ok = t.handlers[handlerIDFromParam(0, p.FunctionID(), p.SequenceNum())]; ok {
-			fmt.Println("Found handler wildcard")
+		handler = t.handlers[handlerIDFromParam(0, p.FunctionID(), p.SequenceNum())]
+	}
 
-			t.handlersMutex.RUnlock()
-			handler.Handle(p)
-		}
+	t.handlersMutex.RUnlock()
+	if handler != nil {
+		handler.Handle(p)
 	}
 }
 
