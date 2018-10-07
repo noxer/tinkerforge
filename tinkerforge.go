@@ -167,7 +167,7 @@ func (t *tinkerforge) Send(p *Packet) (*Packet, error) {
 		return nil, err
 	}
 
-	// Return depeneding of the expected response
+	// Return depending of the expected response
 	if p.ResponseExpected() {
 		result, ok := <-packets
 		if ok {
