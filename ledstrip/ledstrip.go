@@ -51,6 +51,28 @@ func New(t tinkerforge.Tinkerforge, uid string) (*LedStrip, error) {
 	}, nil
 }
 
+// SetAllRGBValues sets all color values beginning from 'index' to the values in 'colors'.
+func (l *LedStrip) SetAllRGBValues(index uint16, colors []Color) error {
+	for len(colors) > 0 {
+		if err := l.SetRGBValues(index, colors); err != nil {
+			return err
+		}
+
+		// calculate the remaining slice
+		colors = colors[min(len(colors), 16):]
+		index += 16
+	}
+
+	return nil
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 // SetRGBValues sets up to 16 color values beginning from 'index' to the values in 'colors'.
 func (l *LedStrip) SetRGBValues(index uint16, colors []Color) error {
 	// The rgb data
