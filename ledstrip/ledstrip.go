@@ -38,17 +38,21 @@ const (
 )
 
 // New creates a new LED strip control for the bricklet with 'uid'.
-func New(t tinkerforge.Tinkerforge, uid uint32) *LedStrip {
+func New(t tinkerforge.Tinkerforge, uid string) (*LedStrip, error) {
+	readUID, err := helpers.Base58ToU32(uid)
+	if err != nil {
+		return nil, err
+	}
 	return &LedStrip{
 		t:           t,
-		uid:         uid,
+		uid:         readUID,
 		colorMap:    [3]int{0, 1, 2},
 		revColorMap: [3]int{0, 1, 2},
-	}
+	}, nil
 }
 
 // SetRGBValues sets up to 16 color values beginning from 'index' to the values in 'colors'.
-func (l *LedStrip) SetRGBValues(index uint16, colors []*Color) error {
+func (l *LedStrip) SetRGBValues(index uint16, colors []Color) error {
 	// The rgb data
 	r, g, b := [16]byte{}, [16]byte{}, [16]byte{}
 
@@ -76,7 +80,7 @@ func (l *LedStrip) SetRGBValues(index uint16, colors []*Color) error {
 }
 
 // GetRGBValues retrieves the currently set RGB values of the LED strip beginning from 'index' and up to 'length' values.
-func (l *LedStrip) GetRGBValues(index uint16, length uint8) ([]*Color, error) {
+func (l *LedStrip) GetRGBValues(index uint16, length uint8) ([]Color, error) {
 	// Limit the length to 16 (maximum the protocol supports)
 	if length > 16 {
 		length = 16
@@ -101,9 +105,8 @@ func (l *LedStrip) GetRGBValues(index uint16, length uint8) ([]*Color, error) {
 	}
 
 	// Transform the single color arrays into color values
-	result := make([]*Color, length)
+	result := make([]Color, length)
 	for i := 0; i < int(length); i++ {
-		result[i] = &Color{}
 		result[i][l.revColorMap[0]] = r[i]
 		result[i][l.revColorMap[1]] = g[i]
 		result[i][l.revColorMap[2]] = b[i]
